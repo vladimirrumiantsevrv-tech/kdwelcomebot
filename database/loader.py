@@ -1,38 +1,66 @@
 import pandas as pd
-import io
 import sys
 from typing import Optional, List
-from utils.helpers import get_direct_download_link, download_file_from_url, extract_first_last_name
+from utils.helpers import extract_first_last_name
+from utils.google_drive import GoogleDriveClient
 import config
 
 class DataLoader:
-    """Загружает и обрабатывает данные из Google Drive"""
+    """Загружает и обрабатывает данные из Google Drive через сервисный аккаунт"""
     
     def __init__(self):
         self.data = None
         self.allowed_users = []
         self.last_update_time = 0
+        self.drive_client = None
+        self._init_drive_client()
+    
+    def _init_drive_client(self):
+        """Инициализирует клиент Google Drive"""
+        try:
+            if config.GOOGLE_CREDENTIALS_JSON:
+                self.drive_client = GoogleDriveClient(
+                    credentials_json=config.GOOGLE_CREDENTIALS_JSON
+                )
+            else:
+                self.drive_client = GoogleDriveClient(
+                    credentials_file=config.GOOGLE_CREDENTIALS_FILE
+                )
+            print("✅ Google Drive клиент инициализирован")
+        except Exception as e:
+            print(f"❌ Ошибка инициализации Google Drive: {e}")
+            self.drive_client = None
     
     def load_data(self) -> bool:
-        """Загружает данные из файла"""
+        """Загружает данные из файла через сервисный аккаунт"""
         print("\n" + "=" * 60)
-        print("🚀 НАЧАЛО ЗАГРУЗКИ ДАННЫХ")
+        print("🚀 НАЧАЛО ЗАГРУЗКИ ДАННЫХ (через сервисный аккаунт)")
         print("=" * 60)
         sys.stdout.flush()
         
+        if not self.drive_client:
+            print("❌ Google Drive клиент не инициализирован")
+            return False
+        
         try:
-            # Получаем прямую ссылку для скачивания
-            download_url = get_direct_download_link(config.GOOGLE_FILE_URL)
-            print(f"📌 Ссылка для скачивания: {download_url}")
-            
-            # Скачиваем файл
-            file_content = download_file_from_url(download_url)
-            if not file_content:
+            # Получаем ID файла из URL
+            file_id = self.drive_client.extract_file_id_from_url(config.GOOGLE_FILE_URL)
+            if not file_id:
+                print(f"❌ Не удалось извлечь ID файла из URL: {config.GOOGLE_FILE_URL}")
                 return False
             
-            # Пробуем прочитать файл в разных форматах
-            new_data = self._read_file(file_content)
+            print(f"📌 ID файла: {file_id}")
+            
+            # Получаем метаданные для проверки доступа
+            metadata = self.drive_client.get_file_metadata(file_id)
+            if metadata:
+                print(f"📌 Файл: {metadata.get('name')} ({metadata.get('mimeType')})")
+                print(f"📌 Изменен: {metadata.get('modifiedTime')}")
+            
+            # Скачиваем и читаем данные
+            new_data = self.drive_client.download_as_dataframe(file_id)
             if new_data is None:
+                print("❌ Не удалось скачать/прочитать файл")
                 return False
             
             # Обрабатываем данные
@@ -51,41 +79,13 @@ class DataLoader:
             
         except Exception as e:
             print(f"❌ Критическая ошибка: {e}")
+            import traceback
+            traceback.print_exc()
             return False
-    
-    def _read_file(self, file_content: bytes) -> Optional[pd.DataFrame]:
-        """Пытается прочитать файл в разных форматах"""
-        # Пробуем CSV с запятой
-        try:
-            csv_data = io.StringIO(file_content.decode('utf-8'))
-            df = pd.read_csv(csv_data, delimiter=',')
-            print("✅ Прочитан как CSV с разделителем ','")
-            return df
-        except:
-            pass
-        
-        # Пробуем CSV с точкой с запятой
-        try:
-            csv_data = io.StringIO(file_content.decode('utf-8'))
-            df = pd.read_csv(csv_data, delimiter=';')
-            print("✅ Прочитан как CSV с разделителем ';'")
-            return df
-        except:
-            pass
-        
-        # Пробуем Excel
-        try:
-            file_bytes = io.BytesIO(file_content)
-            df = pd.read_excel(file_bytes)
-            print("✅ Прочитан как Excel")
-            return df
-        except Exception as e:
-            print(f"❌ Не удалось прочитать файл: {e}")
-            return None
     
     def _process_dataframe(self, df: pd.DataFrame) -> Optional[pd.DataFrame]:
         """Обрабатывает DataFrame: переименовывает колонки, фильтрует"""
-        
+        # [остальной код остается без изменений]
         # Очищаем названия колонок
         df.columns = df.columns.str.strip()
         
@@ -141,8 +141,8 @@ class DataLoader:
         if self.data is None or self.data.empty:
             return None
         
-        if exclude_id is not None:
-            available = self.data.drop(exclude_id, errors='ignore')
+        if exclude_id is not None and exclude_id in self.data.index:
+            available = self.data.drop(exclude_id)
             if len(available) == 0:
                 available = self.data
         else:
