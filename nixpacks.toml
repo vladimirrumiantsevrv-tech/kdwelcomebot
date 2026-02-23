@@ -1,5 +1,0 @@
-﻿[phases.setup]
-nixPkgs = ["gcc", "gfortran", "python311Packages.openblas", "python311Packages.numpy"]
-
-[phases.install]
-cmds = ["pip install -r requirements.txt"]
