@@ -3,8 +3,7 @@ import random
 import sys
 import traceback
 from utils.helpers import convert_drive_link_to_direct, download_file_from_url
-from utils.keyboards import get_answer_keyboard, get_position_keyboard
-from utils.keyboards import get_main_menu_keyboard  # Добавьте эту строку
+from utils.keyboards import get_answer_keyboard, get_position_keyboard, get_main_menu_keyboard  # Добавлен get_main_menu_keyboard
 from database.loader import DataLoader
 from session.manager import SessionManager
 import config
@@ -98,19 +97,21 @@ def send_position_question(
 ):
     """Отправляет вопрос с вариантами должностей (второй этап)"""
     
+    print(f"📤 send_position_question вызвана для user {user_id}")  # ОТЛАДКА
+    
     session = session_manager.get_session(user_id)
     if not session:
         print(f"❌ Сессия не найдена для user {user_id} в send_position_question")
         bot.send_message(chat_id, config.MESSAGES['no_session'])
         return
     
+    print(f"📊 Данные сессии: stage={session.get('stage')}, employee={session['current_employee'].short_name}")  # ОТЛАДКА
+    
     # Проверяем, что мы действительно на этапе name
     if session.get('stage') != 'name':
         print(f"⚠️ Неправильный stage: {session.get('stage')} для user {user_id}")
         # Если уже на position или другом этапе, начинаем заново
         session_manager.clear_session(user_id)
-        # Здесь нам нужен data_loader, но его нет в параметрах функции
-        # Поэтому отправляем сообщение об ошибке
         bot.send_message(
             chat_id,
             "🔄 Что-то пошло не так. Начни сначала, нажав 'Начать' в меню.",
@@ -121,8 +122,11 @@ def send_position_question(
     employee = session['current_employee']
     position_options = session.get('position_options', [])
     
+    print(f"📋 Варианты должностей: {position_options}")  # ОТЛАДКА
+    
     # Обновляем этап в сессии
     session_manager.update_stage(user_id, 'position')
+    print(f"✅ Этап обновлен на 'position' для user {user_id}")  # ОТЛАДКА
     
     # Отправляем сообщение с результатом первого этапа и вопросом о должности
     message_text = f"{previous_result}\n\n{config.MESSAGES['ask_position']}"
@@ -134,6 +138,7 @@ def send_position_question(
         parse_mode='Markdown',
         reply_markup=keyboard
     )
+    print(f"✅ Вопрос о должности отправлен user {user_id}")  # ОТЛАДКА
 
 def send_photo_with_buttons(
     bot: telebot.TeleBot,
