@@ -2,19 +2,16 @@
 
 WORKDIR /app
 
-# Устанавливаем системные зависимости одной строкой
-RUN apt-get update && apt-get install -y gcc g++ gfortran libopenblas-dev libatlas-base-dev && rm -rf /var/lib/apt/lists/*
+# Устанавливаем только build-essential (включает всё необходимое)
+RUN apt-get update && apt-get install -y build-essential libopenblas-dev && rm -rf /var/lib/apt/lists/*
 
-# Копируем requirements
 COPY requirements.txt .
 
 # Устанавливаем все зависимости
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir numpy pandas && \
+    pip install --no-cache-dir pandas==1.5.3 && \
     pip install --no-cache-dir -r requirements.txt
 
-# Копируем код
 COPY . .
 
-# Запускаем бота
 CMD ["python", "main.py"]
