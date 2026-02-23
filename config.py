@@ -1,18 +1,15 @@
 import os
 from dotenv import load_dotenv
-import json
 
-# Загружаем переменные окружения из .env файла
+# Загружаем переменные окружения из .env файла (для локальной разработки)
 load_dotenv()
 
 # Токены и URL
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 GOOGLE_FILE_URL = os.getenv("GOOGLE_FILE_URL")
 
-# Учетные данные для Google Drive сервисного аккаунта
-# Можно хранить как JSON строку в .env или как отдельный файл
+# Учетные данные Google Drive - ТОЛЬКО JSON строка
 GOOGLE_CREDENTIALS_JSON = os.getenv("GOOGLE_CREDENTIALS_JSON")
-GOOGLE_CREDENTIALS_FILE = os.getenv("GOOGLE_CREDENTIALS_FILE", "credentials.json")
 
 # Настройки
 UPDATE_INTERVAL = 300  # 5 минут
@@ -52,5 +49,13 @@ if not TELEGRAM_TOKEN:
     raise ValueError("❌ Нет переменной окружения TELEGRAM_BOT_TOKEN")
 if not GOOGLE_FILE_URL:
     raise ValueError("❌ Нет переменной окружения GOOGLE_FILE_URL")
-if not GOOGLE_CREDENTIALS_JSON and not os.path.exists(GOOGLE_CREDENTIALS_FILE):
-    raise ValueError("❌ Нет учетных данных Google Drive. Укажите GOOGLE_CREDENTIALS_JSON или создайте credentials.json")
+if not GOOGLE_CREDENTIALS_JSON:
+    raise ValueError("❌ Нет переменной окружения GOOGLE_CREDENTIALS_JSON")
+    
+# Добавим отладку
+print("✅ Конфигурация загружена:")
+print(f"  TELEGRAM_TOKEN: {'✅' if TELEGRAM_TOKEN else '❌'}")
+print(f"  GOOGLE_FILE_URL: {'✅' if GOOGLE_FILE_URL else '❌'}")
+print(f"  GOOGLE_CREDENTIALS_JSON: {'✅' if GOOGLE_CREDENTIALS_JSON else '❌'}")
+if GOOGLE_CREDENTIALS_JSON:
+    print(f"  Длина JSON: {len(GOOGLE_CREDENTIALS_JSON)} символов")
