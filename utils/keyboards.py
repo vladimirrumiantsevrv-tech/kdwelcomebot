@@ -21,6 +21,17 @@ def get_answer_keyboard(options: List[str]):
         markup.add(button)
     return markup
 
+def get_position_keyboard(options: List[str]):
+    """Создает inline клавиатуру с вариантами должностей"""
+    markup = telebot.types.InlineKeyboardMarkup(row_width=1)
+    for option in options:
+        button = telebot.types.InlineKeyboardButton(
+            text=option, 
+            callback_data=f"position_{option}"
+        )
+        markup.add(button)
+    return markup
+
 def get_next_keyboard():
     """Создает клавиатуру с кнопкой Далее"""
     markup = telebot.types.InlineKeyboardMarkup()
