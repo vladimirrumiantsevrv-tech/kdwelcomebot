@@ -3,6 +3,7 @@ from database.loader import DataLoader
 from session.manager import SessionManager
 from utils.keyboards import get_next_keyboard, get_main_menu_keyboard
 from handlers.game import send_position_question, send_question
+from utils.callback_helpers import parse_callback_data
 import config
 
 def register_callbacks(
@@ -17,14 +18,19 @@ def register_callbacks(
         chat_id = call.message.chat.id
         message_id = call.message.message_id
         
-        user_answer = call.data[7:]  # Убираем 'answer_'
+        # Парсим callback_data
+        result = parse_callback_data(call.data)
+        if not result:
+            bot.answer_callback_query(call.id, "Ошибка в данных")
+            return
         
-        print(f"📞 Получен answer_ от user {user_id}: {user_answer}")  # ОТЛАДКА
+        prefix, user_answer = result
+        print(f"📞 Получен answer от user {user_id}: {user_answer}")
         
         # Проверяем сессию
         session = session_manager.get_session(user_id)
         if not session:
-            print(f"❌ Сессия не найдена для user {user_id}")  # ОТЛАДКА
+            print(f"❌ Сессия не найдена для user {user_id}")
             bot.answer_callback_query(call.id, "Сессия устарела")
             bot.send_message(
                 chat_id, 
@@ -34,8 +40,6 @@ def register_callbacks(
             return
         
         employee = session['current_employee']
-        print(f"👤 Текущий сотрудник: {employee.short_name}")  # ОТЛАДКА
-        print(f"📊 Этап игры: {session.get('stage')}")  # ОТЛАДКА
         
         # Определяем результат для имени
         if user_answer == employee.short_name:
@@ -46,13 +50,10 @@ def register_callbacks(
         # Удаляем клавиатуру с вариантами имени
         try:
             bot.edit_message_reply_markup(chat_id, message_id, reply_markup=None)
-            print("✅ Клавиатура имени удалена")  # ОТЛАДКА
-        except Exception as e:
-            print(f"⚠️ Ошибка при удалении клавиатуры: {e}")  # ОТЛАДКА
+        except:
             pass
         
-        # Переходим ко второму этапу - угадывание должности
-        print(f"➡️ Вызываем send_position_question для user {user_id}")  # ОТЛАДКА
+        # Переходим ко второму этапу
         send_position_question(bot, chat_id, user_id, session_manager, result)
     
     @bot.callback_query_handler(func=lambda call: call.data.startswith('position_'))
@@ -61,14 +62,19 @@ def register_callbacks(
         chat_id = call.message.chat.id
         message_id = call.message.message_id
         
-        user_answer = call.data[9:]  # Убираем 'position_'
+        # Парсим callback_data
+        result = parse_callback_data(call.data)
+        if not result:
+            bot.answer_callback_query(call.id, "Ошибка в данных")
+            return
         
-        print(f"📞 Получен position_ от user {user_id}: {user_answer}")  # ОТЛАДКА
+        prefix, user_answer = result
+        print(f"📞 Получен position от user {user_id}: {user_answer}")
         
         # Проверяем сессию
         session = session_manager.get_session(user_id)
         if not session:
-            print(f"❌ Сессия не найдена для user {user_id}")  # ОТЛАДКА
+            print(f"❌ Сессия не найдена для user {user_id}")
             bot.answer_callback_query(call.id, "Сессия устарела")
             bot.send_message(
                 chat_id, 
@@ -78,9 +84,6 @@ def register_callbacks(
             return
         
         employee = session['current_employee']
-        print(f"👤 Текущий сотрудник: {employee.short_name}")  # ОТЛАДКА
-        print(f"📊 Этап игры: {session.get('stage')}")  # ОТЛАДКА
-        print(f"✅ Правильная должность: {employee.position}")  # ОТЛАДКА
         
         # Определяем результат для должности
         if user_answer == employee.position:
@@ -91,24 +94,17 @@ def register_callbacks(
         # Удаляем клавиатуру с вариантами должности
         try:
             bot.edit_message_reply_markup(chat_id, message_id, reply_markup=None)
-            print("✅ Клавиатура должности удалена")  # ОТЛАДКА
         except:
             pass
         
-        # Получаем текст предыдущего сообщения (результат первого этапа)
+        # Получаем текст предыдущего сообщения
         previous_text = call.message.text
-        print(f"📝 Текст предыдущего сообщения: {previous_text[:50]}...")  # ОТЛАДКА
-        
-        # Убираем вопрос о должности, оставляем только результат первого этапа
         if config.MESSAGES['ask_position'] in previous_text:
             previous_text = previous_text.replace(f"\n\n{config.MESSAGES['ask_position']}", "")
-            print("✅ Вопрос о должности удален из текста")  # ОТЛАДКА
         
-        # Формируем финальную информацию о сотруднике
+        # Формируем финальную информацию
         final_result = f"{previous_text}\n\n{position_result}"
         info_text = employee.format_info(final_result)
-        
-        print(f"📤 Отправляем финальную информацию для user {user_id}")  # ОТЛАДКА
         
         # Отправляем информацию с кнопкой Далее
         bot.send_message(
@@ -125,19 +121,16 @@ def register_callbacks(
         chat_id = call.message.chat.id
         message_id = call.message.message_id
         
-        print(f"➡️ Next pressed for user {user_id}")  # ОТЛАДКА
+        print(f"➡️ Next pressed for user {user_id}")
         
         # Удаляем клавиатуру
         try:
             bot.edit_message_reply_markup(chat_id, message_id, reply_markup=None)
-            print("✅ Клавиатура Next удалена")  # ОТЛАДКА
         except:
             pass
         
-        # ВАЖНО: Очищаем старую сессию перед созданием новой
-        print(f"🗑 Очищаем сессию для user {user_id}")  # ОТЛАДКА
+        # Очищаем сессию
         session_manager.clear_session(user_id)
         
         # Отправляем следующий вопрос
-        print(f"📤 Вызываем send_question для user {user_id}")  # ОТЛАДКА
         send_question(bot, chat_id, user_id, data_loader, session_manager)
