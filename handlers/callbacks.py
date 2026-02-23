@@ -100,16 +100,22 @@ def register_callbacks(
         )
     
     @bot.callback_query_handler(func=lambda call: call.data == "next")
+    @bot.callback_query_handler(func=lambda call: call.data == "next")
     def handle_next(call):
         user_id = call.from_user.id
         chat_id = call.message.chat.id
         message_id = call.message.message_id
-        
+    
+        print(f"➡️ Next pressed for user {user_id}")  # Отладка
+    
         # Удаляем клавиатуру
         try:
             bot.edit_message_reply_markup(chat_id, message_id, reply_markup=None)
         except:
             pass
-        
+    
+        # ВАЖНО: Очищаем старую сессию перед созданием новой
+        session_manager.clear_session(user_id)
+    
         # Отправляем следующий вопрос
         send_question(bot, chat_id, user_id, data_loader, session_manager)

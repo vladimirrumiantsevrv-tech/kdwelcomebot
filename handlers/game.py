@@ -4,6 +4,7 @@ import sys
 import traceback
 from utils.helpers import convert_drive_link_to_direct, download_file_from_url
 from utils.keyboards import get_answer_keyboard, get_position_keyboard
+from utils.keyboards import get_main_menu_keyboard  # Добавьте эту строку
 from database.loader import DataLoader
 from session.manager import SessionManager
 import config
@@ -27,6 +28,13 @@ def send_question(
     try:
         # Получаем предыдущего сотрудника для исключения
         session = session_manager.get_session(user_id)
+        
+        # ВАЖНО: Проверяем stage, если он 'position' - значит что-то пошло не так
+        if session and session.get('stage') == 'position':
+            print(f"⚠️ Обнаружена сессия в состоянии 'position' для user {user_id}, очищаем")
+            session_manager.clear_session(user_id)
+            session = None
+        
         exclude_id = session.get('last_employee_id') if session else None
         
         # Выбираем случайного сотрудника
@@ -92,7 +100,22 @@ def send_position_question(
     
     session = session_manager.get_session(user_id)
     if not session:
+        print(f"❌ Сессия не найдена для user {user_id} в send_position_question")
         bot.send_message(chat_id, config.MESSAGES['no_session'])
+        return
+    
+    # Проверяем, что мы действительно на этапе name
+    if session.get('stage') != 'name':
+        print(f"⚠️ Неправильный stage: {session.get('stage')} для user {user_id}")
+        # Если уже на position или другом этапе, начинаем заново
+        session_manager.clear_session(user_id)
+        # Здесь нам нужен data_loader, но его нет в параметрах функции
+        # Поэтому отправляем сообщение об ошибке
+        bot.send_message(
+            chat_id,
+            "🔄 Что-то пошло не так. Начни сначала, нажав 'Начать' в меню.",
+            reply_markup=get_main_menu_keyboard()
+        )
         return
     
     employee = session['current_employee']

@@ -24,6 +24,7 @@ class SessionManager:
             'correct_position': employee.position,
             'stage': 'name'  # 'name' или 'position'
         }
+        print(f"✅ Создана сессия для user {user_id}, stage=name")  # Отладка
     
     def get_session(self, user_id: int) -> Optional[Dict]:
         """Возвращает сессию пользователя"""
@@ -38,10 +39,12 @@ class SessionManager:
         """Обновляет этап игры"""
         if user_id in self.sessions:
             self.sessions[user_id]['stage'] = stage
+            print(f"✅ Обновлен stage для user {user_id}: {stage}")  # Отладка
     
     def clear_session(self, user_id: int):
         """Очищает сессию"""
         if user_id in self.sessions:
+            print(f"🗑 Очищаем сессию для user {user_id}")  # Отладка
             del self.sessions[user_id]
     
     def session_exists(self, user_id: int) -> bool:
