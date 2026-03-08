@@ -1,6 +1,6 @@
 import pandas as pd
 import sys
-from typing import Optional, List
+from typing import Optional, List, Set
 from utils.helpers import extract_first_last_name
 from utils.google_drive import GoogleDriveClient
 import config
@@ -134,17 +134,17 @@ class DataLoader:
         
         print(f"📌 Разрешено пользователей: {len(self.allowed_users)}")
     
-    def get_random_employee(self, exclude_id: Optional[int] = None):
-        """Возвращает случайного сотрудника, исключая указанный ID"""
+    def get_random_employee(self, exclude_ids: Optional[Set[int]] = None):
+        """Возвращает случайного сотрудника, исключая указанные ID (уже угаданных)"""
         from database.models import Employee
         
         if self.data is None or self.data.empty:
             return None
         
-        if exclude_id is not None and exclude_id in self.data.index:
-            available = self.data.drop(exclude_id)
+        if exclude_ids and len(exclude_ids) > 0:
+            available = self.data[~self.data.index.isin(exclude_ids)]
             if len(available) == 0:
-                available = self.data
+                return None
         else:
             available = self.data
         

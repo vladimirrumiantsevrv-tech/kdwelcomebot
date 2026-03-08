@@ -25,21 +25,27 @@ def send_question(
         return
     
     try:
-        # Получаем предыдущего сотрудника для исключения
-        session = session_manager.get_session(user_id)
+        # Получаем уже угаданных сотрудников (имя + должность верны) — их не показываем
+        completed_ids = session_manager.get_completed_ids(user_id)
         
+        session = session_manager.get_session(user_id)
         # ВАЖНО: Проверяем stage, если он 'position' - значит что-то пошло не так
         if session and session.get('stage') == 'position':
             print(f"⚠️ Обнаружена сессия в состоянии 'position' для user {user_id}, очищаем")
             session_manager.clear_session(user_id)
             session = None
         
-        exclude_id = session.get('last_employee_id') if session else None
+        # Выбираем случайного сотрудника из ещё не угаданных
+        employee = data_loader.get_random_employee(exclude_ids=completed_ids)
         
-        # Выбираем случайного сотрудника
-        employee = data_loader.get_random_employee(exclude_id)
         if not employee:
-            employee = data_loader.get_random_employee()
+            # Все сотрудники угаданы — игра пройдена
+            bot.send_message(
+                chat_id,
+                config.MESSAGES['game_complete'],
+                reply_markup=get_main_menu_keyboard()
+            )
+            return
         
         # Получаем все короткие имена для вариантов
         all_short_names = data_loader.data['short_name'].tolist()

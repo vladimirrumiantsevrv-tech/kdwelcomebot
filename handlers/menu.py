@@ -25,8 +25,8 @@ def register_menu_handlers(
             return
         
         if message.text == config.MENU_BUTTONS['start']:
-            # Очищаем сессию и начинаем новую игру
-            session_manager.clear_session(user_id)
+            # Полный сброс игры и начало заново
+            session_manager.reset_game(user_id)
             send_question(bot, chat_id, user_id, data_loader, session_manager)
         
         elif message.text == config.MENU_BUTTONS['continue']:

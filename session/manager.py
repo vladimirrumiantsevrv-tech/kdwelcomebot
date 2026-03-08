@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Any, List
+from typing import Dict, Optional, Any, List, Set
 from database.models import Employee
 
 class SessionManager:
@@ -6,6 +6,7 @@ class SessionManager:
     
     def __init__(self):
         self.sessions: Dict[int, Dict[str, Any]] = {}
+        self.completed_employee_ids: Dict[int, Set[int]] = {}
     
     def create_session(
         self, 
@@ -49,10 +50,28 @@ class SessionManager:
             print(f"✅ Обновлен stage для user {user_id}: {stage}")
     
     def clear_session(self, user_id: int):
-        """Очищает сессию"""
+        """Очищает текущую сессию (вопрос), но сохраняет прогресс по угаданным"""
         if user_id in self.sessions:
             print(f"🗑 Очищаем сессию для user {user_id}")
             del self.sessions[user_id]
+    
+    def reset_game(self, user_id: int):
+        """Полный сброс игры: сессия + список угаданных сотрудников"""
+        self.clear_session(user_id)
+        if user_id in self.completed_employee_ids:
+            self.completed_employee_ids[user_id] = set()
+            print(f"🔄 Сброшен прогресс игры для user {user_id}")
+    
+    def get_completed_ids(self, user_id: int) -> Set[int]:
+        """Возвращает множество ID сотрудников, которых пользователь угадал полностью"""
+        return self.completed_employee_ids.get(user_id, set())
+    
+    def add_completed(self, user_id: int, employee_id: int):
+        """Добавляет сотрудника в список угаданных (имя и должность верны)"""
+        if user_id not in self.completed_employee_ids:
+            self.completed_employee_ids[user_id] = set()
+        self.completed_employee_ids[user_id].add(employee_id)
+        print(f"✅ User {user_id} полностью угадал сотрудника #{employee_id}")
     
     def session_exists(self, user_id: int) -> bool:
         """Проверяет существование сессии"""

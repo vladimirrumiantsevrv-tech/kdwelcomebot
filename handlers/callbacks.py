@@ -86,21 +86,27 @@ def register_callbacks(
         employee = session['current_employee']
         
         # Определяем результат для должности
-        if user_answer == employee.position:
+        position_correct = user_answer == employee.position
+        if position_correct:
             position_result = config.MESSAGES['position_correct']
         else:
             position_result = config.MESSAGES['position_wrong'].format(position=employee.position)
+        
+        # Получаем текст предыдущего сообщения (результат первого этапа)
+        previous_text = call.message.text or ""
+        if config.MESSAGES['ask_position'] in previous_text:
+            previous_text = previous_text.replace(f"\n\n{config.MESSAGES['ask_position']}", "")
+        
+        # Добавляем в угаданные только если оба ответа верны (имя и должность)
+        name_correct = "Абсолютно верно" in previous_text
+        if name_correct and position_correct:
+            session_manager.add_completed(user_id, employee.id)
         
         # Удаляем клавиатуру с вариантами должности
         try:
             bot.edit_message_reply_markup(chat_id, message_id, reply_markup=None)
         except:
             pass
-        
-        # Получаем текст предыдущего сообщения
-        previous_text = call.message.text
-        if config.MESSAGES['ask_position'] in previous_text:
-            previous_text = previous_text.replace(f"\n\n{config.MESSAGES['ask_position']}", "")
         
         # Формируем финальную информацию
         final_result = f"{previous_text}\n\n{position_result}"
